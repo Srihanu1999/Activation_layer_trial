@@ -2,54 +2,51 @@
 #include <cuda_runtime.h>
 #include "activation_layer.h"
 
-__global__ void initialize_test_data(float* data, int size) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < size) {
-        data[idx] = (idx % 2 == 0) ? idx * 0.1f : -idx * 0.1f;  // Alternating positive and negative values
-    }
-}
+#define SIZE 10  // Number of test elements
 
-void print_array(float* data, int size) {
-    float* h_data = new float[size];
-    cudaMemcpy(h_data, data, size * sizeof(float), cudaMemcpyDeviceToHost);
-
+void print_array(const char* label, float* arr, int size) {
+    std::cout << label << ": ";
     for (int i = 0; i < size; i++) {
-        std::cout << h_data[i] << " ";
+        std::cout << arr[i] << " ";
     }
     std::cout << std::endl;
-    delete[] h_data;
 }
 
 int main() {
-    int size = 10;
-    float* d_input;
+    // Test input values
+    float h_input[SIZE] = { -2.0f, -1.0f, -0.5f, 0.0f, 0.5f, 1.0f, 2.0f, -3.0f, 3.0f, -4.0f };
+    float *d_input;
 
-    cudaMalloc(&d_input, size * sizeof(float));
+    // Allocate memory on the GPU
+    cudaMalloc((void**)&d_input, SIZE * sizeof(float));
 
-    initialize_test_data<<<1, size>>>(d_input, size);
-    cudaDeviceSynchronize();
+    // Copy input data to GPU
+    cudaMemcpy(d_input, h_input, SIZE * sizeof(float), cudaMemcpyHostToDevice);
 
-    std::cout << "Original Data: ";
-    print_array(d_input, size);
+    // Apply Leaky ReLU (alpha = 0.1)
+    apply_leaky_relu(d_input, SIZE, 0.1f);
+    cudaMemcpy(h_input, d_input, SIZE * sizeof(float), cudaMemcpyDeviceToHost);
+    print_array("Leaky ReLU", h_input, SIZE);
 
-    apply_leaky_relu(d_input, size, 0.1f);
-    std::cout << "After Leaky ReLU: ";
-    print_array(d_input, size);
+    // Restore input values and copy again
+    float h_input2[SIZE] = { -2.0f, -1.0f, -0.5f, 0.0f, 0.5f, 1.0f, 2.0f, -3.0f, 3.0f, -4.0f };
+    cudaMemcpy(d_input, h_input2, SIZE * sizeof(float), cudaMemcpyHostToDevice);
 
-    initialize_test_data<<<1, size>>>(d_input, size);
-    cudaDeviceSynchronize();
+    // Apply Tanh
+    apply_tanh(d_input, SIZE);
+    cudaMemcpy(h_input, d_input, SIZE * sizeof(float), cudaMemcpyDeviceToHost);
+    print_array("Tanh", h_input, SIZE);
 
-    apply_tanh(d_input, size);
-    std::cout << "After Tanh: ";
-    print_array(d_input, size);
+    // Restore input values
+    cudaMemcpy(d_input, h_input2, SIZE * sizeof(float), cudaMemcpyHostToDevice);
 
-    initialize_test_data<<<1, size>>>(d_input, size);
-    cudaDeviceSynchronize();
+    // Apply Sigmoid
+    apply_sigmoid(d_input, SIZE);
+    cudaMemcpy(h_input, d_input, SIZE * sizeof(float), cudaMemcpyDeviceToHost);
+    print_array("Sigmoid", h_input, SIZE);
 
-    apply_sigmoid(d_input, size);
-    std::cout << "After Sigmoid: ";
-    print_array(d_input, size);
-
+    // Free GPU memory
     cudaFree(d_input);
+
     return 0;
 }
