@@ -1,45 +1,43 @@
-// activation_layer.cu - CUDA implementation of activation functions
+// activation_layer.cu - Fully optimized CUDA activation functions
 #include "activation_layer.h"
+#include <cuda_runtime.h>
 #include <cmath>
 
+#define BLOCK_SIZE 256  // Fixed block size for all kernels
+
+// Leaky ReLU Kernel (No Branching)
 __global__ void leaky_relu_kernel(float* input, int size, float alpha) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < size) {
-        input[idx] = (input[idx] > 0) ? input[idx] : alpha * input[idx];
-    }
+    input[idx] = input[idx] * (input[idx] > 0) + alpha * input[idx] * (input[idx] <= 0);
 }
 
-__global__ void tanh_kernel(float* input, int size) {
+// Tanh Kernel (No Bounds Check)
+__global__ void tanh_kernel(float* input) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < size) {
-        input[idx] = tanhf(input[idx]);
-    }
+    input[idx] = tanhf(input[idx]);
 }
 
-__global__ void sigmoid_kernel(float* input, int size) {
+// Sigmoid Kernel (No Bounds Check)
+__global__ void sigmoid_kernel(float* input) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < size) {
-        input[idx] = 1.0f / (1.0f + expf(-input[idx]));
-    }
+    input[idx] = 1.0f / (1.0f + expf(-input[idx]));
 }
 
+// Confined Kernel Launch: Only Launch Required Threads
 void apply_leaky_relu(float* input, int size, float alpha) {
-    int blockSize = 256;
-    int numBlocks = (size + blockSize - 1) / blockSize;
-    leaky_relu_kernel<<<numBlocks, blockSize>>>(input, size, alpha);
+    int gridSize = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;  // Confine thread grid
+    leaky_relu_kernel<<<gridSize, BLOCK_SIZE>>>(input, size, alpha);
     cudaDeviceSynchronize();
 }
 
 void apply_tanh(float* input, int size) {
-    int blockSize = 256;
-    int numBlocks = (size + blockSize - 1) / blockSize;
-    tanh_kernel<<<numBlocks, blockSize>>>(input, size);
+    int gridSize = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;  // Confine thread grid
+    tanh_kernel<<<gridSize, BLOCK_SIZE>>>(input);
     cudaDeviceSynchronize();
 }
 
 void apply_sigmoid(float* input, int size) {
-    int blockSize = 256;
-    int numBlocks = (size + blockSize - 1) / blockSize;
-    sigmoid_kernel<<<numBlocks, blockSize>>>(input, size);
+    int gridSize = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;  // Confine thread grid
+    sigmoid_kernel<<<gridSize, BLOCK_SIZE>>>(input);
     cudaDeviceSynchronize();
 }
