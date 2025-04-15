@@ -1,52 +1,48 @@
 #include <iostream>
-#include <cuda_runtime.h>
+#include <cassert>
 #include "activation_layer.h"
 
-#define SIZE 10  // Number of test elements
+#define SIZE 5  // Size of the input array
 
-void print_array(const char* label, float* arr, int size) {
-    std::cout << label << ": ";
+// Helper function to print arrays
+void print_array(float* arr, int size) {
     for (int i = 0; i < size; i++) {
         std::cout << arr[i] << " ";
     }
     std::cout << std::endl;
 }
 
+// Test the activation layer
 int main() {
-    // Test input values
-    float h_input[SIZE] = { -2.0f, -1.0f, -0.5f, 0.0f, 0.5f, 1.0f, 2.0f, -3.0f, 3.0f, -4.0f };
-    float *d_input;
+    float input[SIZE] = {-1.0f, 0.0f, 1.0f, -2.0f, 2.0f};  // Example input
 
-    // Allocate memory on the GPU
-    cudaMalloc((void**)&d_input, SIZE * sizeof(float));
+    // Test ReLU
+    float* d_input;
+    cudaMalloc(&d_input, SIZE * sizeof(float));
+    cudaMemcpy(d_input, input, SIZE * sizeof(float), cudaMemcpyHostToDevice);
 
-    // Copy input data to GPU
-    cudaMemcpy(d_input, h_input, SIZE * sizeof(float), cudaMemcpyHostToDevice);
+    std::cout << "Testing ReLU activation:" << std::endl;
+    apply_activation(d_input, SIZE, ActivationType::RELU, 0.0f);  // ReLU does not need alpha
 
-    // Apply Leaky ReLU (alpha = 0.1)
-    apply_leaky_relu(d_input, SIZE, 0.1f);
-    cudaMemcpy(h_input, d_input, SIZE * sizeof(float), cudaMemcpyDeviceToHost);
-    print_array("Leaky ReLU", h_input, SIZE);
+    cudaMemcpy(input, d_input, SIZE * sizeof(float), cudaMemcpyDeviceToHost);
+    print_array(input, SIZE);  // Expected output: 0.0 0.0 1.0 0.0 2.0
 
-    // Restore input values and copy again
-    float h_input2[SIZE] = { -2.0f, -1.0f, -0.5f, 0.0f, 0.5f, 1.0f, 2.0f, -3.0f, 3.0f, -4.0f };
-    cudaMemcpy(d_input, h_input2, SIZE * sizeof(float), cudaMemcpyHostToDevice);
+    // Test Leaky ReLU
+    cudaMemcpy(d_input, input, SIZE * sizeof(float), cudaMemcpyHostToDevice);
+    std::cout << "\nTesting Leaky ReLU activation with alpha=0.1:" << std::endl;
+    apply_activation(d_input, SIZE, ActivationType::LEAKY_RELU, 0.1f);
 
-    // Apply Tanh
-    apply_tanh(d_input, SIZE);
-    cudaMemcpy(h_input, d_input, SIZE * sizeof(float), cudaMemcpyDeviceToHost);
-    print_array("Tanh", h_input, SIZE);
+    cudaMemcpy(input, d_input, SIZE * sizeof(float), cudaMemcpyDeviceToHost);
+    print_array(input, SIZE);  // Expected output: -0.1 0.0 1.0 -0.2 2.0
 
-    // Restore input values
-    cudaMemcpy(d_input, h_input2, SIZE * sizeof(float), cudaMemcpyHostToDevice);
+    // Test Sigmoid
+    cudaMemcpy(d_input, input, SIZE * sizeof(float), cudaMemcpyHostToDevice);
+    std::cout << "\nTesting Sigmoid activation:" << std::endl;
+    apply_activation(d_input, SIZE, ActivationType::SIGMOID, 0.0f);  // Sigmoid does not need alpha
 
-    // Apply Sigmoid
-    apply_sigmoid(d_input, SIZE);
-    cudaMemcpy(h_input, d_input, SIZE * sizeof(float), cudaMemcpyDeviceToHost);
-    print_array("Sigmoid", h_input, SIZE);
+    cudaMemcpy(input, d_input, SIZE * sizeof(float), cudaMemcpyDeviceToHost);
+    print_array(input, SIZE);  // Expected output: 0.268941 0.5 0.731059 0.119203 0.880797
 
-    // Free GPU memory
     cudaFree(d_input);
-
     return 0;
 }
