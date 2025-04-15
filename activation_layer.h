@@ -1,9 +1,16 @@
-// activation_layer.h - Header file for activation functions
 #ifndef ACTIVATION_LAYER_H
 #define ACTIVATION_LAYER_H
 
-void apply_leaky_relu(float* input, int size, float alpha);
-void apply_tanh(float* input, int size);
-void apply_sigmoid(float* input, int size);
+#include <cuda_runtime.h>
 
-#endif // ACTIVATION_LAYER_H
+enum class ActivationType {
+    RELU,
+    LEAKY_RELU,
+    SIGMOID,
+    TANH
+};
+
+void apply_activation(float* input, int size, ActivationType activation_type, float alpha);
+void apply_activation_backward(float* input, float* grad_output, int size, ActivationType activation_type, float alpha, float* grad_input);
+
+#endif  // ACTIVATION_LAYER_H
