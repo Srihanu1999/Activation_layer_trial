@@ -43,6 +43,14 @@ int main() {
     cudaMemcpy(input, d_input, SIZE * sizeof(float), cudaMemcpyDeviceToHost);
     print_array(input, SIZE);  // Expected output: 0.268941 0.5 0.731059 0.119203 0.880797
 
+    // Test Tanh
+    cudaMemcpy(d_input, input, SIZE * sizeof(float), cudaMemcpyHostToDevice);
+    std::cout << "\nTesting Tanh activation:" << std::endl;
+    apply_activation(d_input, SIZE, ActivationType::TANH, 0.0f);  // Tanh does not need alpha
+
+    cudaMemcpy(input, d_input, SIZE * sizeof(float), cudaMemcpyDeviceToHost);
+    print_array(input, SIZE);  // Expected output: -0.761594 0.0 0.761594 -0.964027 0.964027
+
     cudaFree(d_input);
     return 0;
 }
